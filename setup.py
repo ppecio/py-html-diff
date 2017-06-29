@@ -9,5 +9,10 @@ setup(
     license='Apache',
     author='Pawel Pecio',
     author_email='ppecio@nglogic.com',
-    description=''
+    description='',
+    install_requires=[
+        'genshi',
+        'html5lib',
+        'flufl.enum'
+    ],
 )
