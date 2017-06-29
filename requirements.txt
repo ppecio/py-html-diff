@@ -1,0 +1,7 @@
+genshi
+html5lib
+py-flags
+flufl.enum
+
+# for test runner
+pyyaml

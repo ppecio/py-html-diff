@@ -1,0 +1,115 @@
+maintainer: ppecio@nglogic.com
+
+# Removal text section
+
+remove_middle:
+  title: Test removal text in the middle of paragraph
+  original: >
+    <p>My text to remove</p>
+  modified: >
+    <p>My text remove</p>
+  expected: >
+    <p>My text<del> to</del> remove</p>
+
+remove_start:
+  title: Test removal starting text
+  original: >
+    <p>My text to remove</p>
+  modified: >
+    <p>to remove</p>
+  expected: >
+    <p><del>My text</del> to remove</p>
+
+remove_end:
+  title: Test removal ending text
+  original: >
+    <p>My text to remove</p>
+  modified: >
+    <p>My text</p>
+  expected: >
+    <p>My text<del> to remove</del></p>
+
+remove_all:
+  title: Test whole paragraph test remove
+  original: >
+    <p>My text to remove</p>
+  modified: >
+    <p></p>
+  expected: >
+    <p><del>My text to remove</del></p>
+
+# Insertion text section
+
+insert_middle:
+  title: Test insertion text in the middle of paragraph
+  original: >
+    <p>My text</p>
+  modified: >
+    <p>My changed text</p>
+  expected: >
+    <p>My<ins> changed</ins> text</p>
+
+insert_start:
+  title: Test text insertion at paragraph beginning
+  original: >
+    <p>awesome text</p>
+  modified: >
+    <p>My awesome text</p>
+  expected: >
+    <p><ins>My</ins> awesome text</p>
+
+insert_end:
+  title: Test insertion at paragraph end
+  original: >
+    <p>My text</p>
+  modified: >
+    <p>My text expanded</p>
+  expected: >
+    <p>My text<ins> expanded</ins></p>
+
+insert_all:
+  title: Test paragraph filling
+  original: >
+    <p></p>
+  modified: >
+    <p>My text</p>
+  expected: >
+    <p><ins>My text</ins></p>
+
+# Modification text section
+
+modify_middle:
+  title: Test text modification in the middle of paragraph
+  original: >
+    <p>My old text</p>
+  modified: >
+    <p>My changed text</p>
+  expected: >
+    <p>My<del> old</del><ins> changed</ins> text</p>
+
+modify_start:
+  title: Test text modification at paragraph beginning
+  original: >
+    <p>My text</p>
+  modified: >
+    <p>Your text</p>
+  expected: >
+    <p><del>My</del><ins>Your</ins> text</p>
+
+modify_end:
+  title: Test insertion at paragraph end
+  original: >
+    <p>My beautiful text</p>
+  modified: >
+    <p>My beautiful essay</p>
+  expected: >
+    <p>My beautiful<del> text</del><ins> essay</ins></p>
+
+modify_all:
+  title: Test whole paragraph change
+  original: >
+    <p>My old text</p>
+  modified: >
+    <p>Your new essay</p>
+  expected: >
+    <p><del>My old text</del><ins>Your new essay</ins></p>

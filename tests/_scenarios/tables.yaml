@@ -1,0 +1,245 @@
+maintainer: ppecio@nglogic.com
+
+add_table:
+  title: Test adding table
+  original: >
+    <section>
+      <p>Paragraph before</p>
+      <p>Paragraph after</p>
+    </section>
+  modified: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td>1,1</td><td>1,2</td></tr>
+          <tr><td>2,1</td><td>2,2</td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+  expected: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td><ins>1,1</ins></td><td><ins>1,2</ins></td></tr>
+          <tr><td><ins>2,1</ins></td><td><ins>2,2</ins></td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+
+remove_table:
+  title: Test removing table
+  original: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td>1,1</td><td>1,2</td></tr>
+          <tr><td>2,1</td><td>2,2</td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+  modified: >
+    <section>
+      <p>Paragraph before</p>
+      <p>Paragraph after</p>
+    </section>
+  expected: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td><del>1,1</del></td><td><del>1,2</del></td></tr>
+          <tr><td><del>2,1</del></td><td><del>2,2</del></td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+
+add_row:
+  title: Test adding row
+  original: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td>1,1</td><td>1,2</td></tr>
+          <tr><td>2,1</td><td>2,2</td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+  modified: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td>1,1</td><td>1,2</td></tr>
+          <tr><td>2,1</td><td>2,2</td></tr>
+          <tr><td>3,1</td><td>3,2</td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+  expected: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td>1,1</td><td>1,2</td></tr>
+          <tr><td>2,1</td><td>2,2</td></tr>
+          <tr><td><ins>3,1</ins></td><td><ins>3,2</ins></td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+
+remove_row:
+  title: Test removing row
+  original: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td>1,1</td><td>1,2</td></tr>
+          <tr><td>2,1</td><td>2,2</td></tr>
+          <tr><td>3,1</td><td>3,2</td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+  modified: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td>1,1</td><td>1,2</td></tr>
+          <tr><td>2,1</td><td>2,2</td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+  expected: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td>1,1</td><td>1,2</td></tr>
+          <tr><td>2,1</td><td>2,2</td></tr>
+          <tr><td><del>3,1</del></td><td><del>3,2</del></td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+
+modify_row:
+  title: Test modifying row
+  original: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td>1,1</td><td>1,2</td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+  modified: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td>1,A</td><td>1,B</td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+  expected: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td><del>1,1</del><ins>1,A</ins></td><td><del>1,2</del><ins>1,B</ins></td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+
+emptize_row:
+  title: Test emptizing row
+  original: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td>1,1</td><td>1,2</td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+  modified: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+  expected: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+        <tbody>
+          <tr><td><del>1,1</del></td><td><del>1,2</del></td></tr>
+        </tbody>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+
+add_empty_table:
+  title: Test adding empty table
+  original: >
+    <section>
+      <p>Paragraph before</p>
+      <p>Paragraph after</p>
+    </section>
+  modified: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+  expected: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+
+remove_empty_table:
+  title: Test adding empty table
+  original: >
+    <section>
+      <p>Paragraph before</p>
+      <table>
+      </table>
+      <p>Paragraph after</p>
+    </section>
+  modified: >
+    <section>
+      <p>Paragraph before</p>
+      <p>Paragraph after</p>
+    </section>
+  expected: >
+    <section>
+      <p>Paragraph before</p>
+      <p>Paragraph after</p>
+    </section>
