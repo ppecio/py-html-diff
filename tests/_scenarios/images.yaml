@@ -1,0 +1,46 @@
+maintainer: ppecio@nglogic.com
+
+insert_img:
+  title: "Check image insertion"
+  original: >
+    <p>Text with image</p>
+  modified: >
+    <p>Text with <img src="some_image.png"> image</p>
+  expected: >
+    <p>Text with <ins><img src="some_image.png"></ins> image</p>
+
+remove_img:
+  title: "Check image removal"
+  original: >
+    <p>Text with <img src="some_image.png"> image</p>
+  modified: >
+    <p>Text with image</p>
+  expected: >
+    <p>Text with <del><img src="some_image.png"></del> image</p>
+
+change_img:
+  title: "Check image source change"
+  original: >
+    <p>Text with <img src="some_image.png"> image</p>
+  modified: >
+    <p>Text with <img src="different_image.png"> image</p>
+  expected: >
+    <p>Text with <img src="different_image.png"> image</p>
+
+replace_by_image:
+  title: "Check replacing image by text"
+  original: >
+    <p>Text with <img src="some_image.png"> image</p>
+  modified: >
+    <p>Text with no image</p>
+  expected: >
+    <p>Text with <del><img src="some_image.png"></del><ins>no</ins> image</p>
+
+replace_image:
+  title: "Check replacing text by image"
+  original: >
+    <p>Text with no image</p>
+  modified: >
+    <p>Text with <img src="some_image.png"> image</p>
+  expected: >
+    <p>Text with <del>no</del><ins><img src="some_image.png"></ins> image</p>

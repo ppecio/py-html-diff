@@ -1,0 +1,29 @@
+maintainer: ppecio@nglogic.com
+
+# In paragraphs
+custom_style_add:
+  title: Test adding custom style
+  original: >
+    <p>My text</p>
+  modified: >
+    <p class="custom-style-1 is-custom-style">My text</p>
+  expected: >
+    <p class="custom-style-1 is-custom-style">My text</p>
+
+custom_style_remove:
+  title: Test removing custom style
+  original: >
+    <p class="custom-style-1 is-custom-style">My text</p>
+  modified: >
+    <p>My text</p>
+  expected: >
+    <p>My text</p>
+
+custom_style_change:
+  title: Test changing custom style
+  original: >
+    <p class="custom-style-1 is-custom-style">My text</p>
+  modified: >
+    <p class="custom-style-2 is-custom-style">My text</p>
+  expected: >
+    <p class="custom-style-2 is-custom-style">My text</p>

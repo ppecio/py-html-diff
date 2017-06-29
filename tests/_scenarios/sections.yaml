@@ -1,0 +1,49 @@
+maintainer: ppecio@nglogic.com
+
+remove_paragraph:
+  title: Test removing whole paragraph
+  original: >
+    <section>
+      <p>First paragraph</p>
+      <p>Second paragraph</p>
+    </section>
+  modified: >
+    <section>
+      <p>Second paragraph</p>
+    </section>
+  expected: >
+    <section>
+      <p><del>First paragraph</del></p>
+      <p>Second paragraph</p>
+    </section>
+
+add_paragraph:
+  title: Test adding paragraph
+  original: >
+    <section>
+      <p>First paragraph</p>
+    </section>
+  modified: >
+    <section>
+      <p>First paragraph</p>
+      <p>Second paragraph</p>
+    </section>
+  expected: >
+    <section>
+      <p>First paragraph</p>
+      <p><ins>Second paragraph</ins></p>
+    </section>
+
+emptize_section:
+  title: Test emptize section (removing last paragraph)
+  original: >
+    <section>
+      <p>Text</p>
+    </section>
+  modified: >
+    <section></section>
+  expected: >
+    <section>
+      <p><del>Text</del></p>
+    </section>
+
