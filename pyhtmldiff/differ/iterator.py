@@ -10,7 +10,7 @@ from itertools import chain, islice
 
 from genshi.core import TEXT
 
-from utils import longzip, irepeat
+from pyhtmldiff.utils import longzip, irepeat
 
 
 class SplittedTextNodesIterator(object):

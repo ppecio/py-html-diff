@@ -3,8 +3,13 @@ from distutils.core import setup
 setup(
     name='py-html-diff',
     version='0.1',
-    packages=['', 'dtd', 'differ', 'producer'],
-    package_dir={'': 'pyhtmldiff'},
+    packages=['pyhtmldiff', 'differ', 'dtd', 'producer'],
+    package_dir={
+        'pyhtmldiff': 'pyhtmldiff',
+        'differ': 'pyhtmldiff/differ',
+        'dtd': 'pyhtmldiff/dtd',
+        'producer': 'pyhtmldiff/producer',
+    },
     url='',
     license='Apache',
     author='Pawel Pecio',
