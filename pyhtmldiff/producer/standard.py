@@ -13,7 +13,7 @@ from difflib import SequenceMatcher
 
 from genshi.core import QName, Attrs
 
-from pyhtmldiff.dtd.const import DOMNode
+from dtd.const import DOMNode
 from pyhtmldiff.utils import longzip
 from .base import DiffProducer
 
