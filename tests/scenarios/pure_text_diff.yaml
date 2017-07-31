@@ -1,0 +1,29 @@
+# Simple text diff
+maintainer: ppecio@nglogic.com
+
+removal:
+  title: Pure text removal test
+  original: >
+    <span>My text</span>
+  modified: >
+    <span>My</span>
+  expected: >
+    <span>My<del> text</del></span>
+
+insertion:
+  title: Pure text insertion test
+  original: >
+    <span>My text</span>
+  modified: >
+    <span>My changed text</span>
+  expected: >
+    <span>My <ins>changed </ins>text</span>
+
+modified:
+  title: Pure text modification test
+  original: >
+    <span>My original text</span>
+  modified: >
+    <span>My changed text</span>
+  expected: >
+    <span>My <del>original</del><ins>changed</ins> text</span>
