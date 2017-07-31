@@ -5,6 +5,8 @@
     @author: druid
 """
 import os
+from unittest import skip
+
 import six
 import sys
 import yaml
@@ -50,7 +52,12 @@ class YamlTestRunnerMeta(type):
                 result = self.differ.get_html_diff(original, modified)
 
                 self.assertEqual(expected, result)
-            return test
+
+            skip_test = case.get('skip', None)
+            if skip_test is not None:
+                return skip(skip_test)(test)
+            else:
+                return test
 
         for filename in os.listdir(directory):
             case_file = open(os.path.join(directory, filename), "r")

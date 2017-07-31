@@ -7,7 +7,7 @@
 """
 
 
-def longzip(a, b):
+def ilongzip(a, b):
     """Like `izip` but yields `None` for missing items."""
     aiter = iter(a)
     biter = iter(b)

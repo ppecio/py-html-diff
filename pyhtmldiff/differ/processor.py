@@ -486,7 +486,6 @@ class SingleOperationProcessor(BaseProcessor):
         self._all_same = True
         self._stack.append(self.MARKER)
 
-
     def flush(self):
         if self._stack and self._stack[0] is self.MARKER:
             self.close_diff()

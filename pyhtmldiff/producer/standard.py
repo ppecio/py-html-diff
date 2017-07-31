@@ -14,7 +14,7 @@ from difflib import SequenceMatcher
 from genshi.core import QName, Attrs
 
 from pyhtmldiff.dtd.const import DOMNode
-from pyhtmldiff.utils import longzip
+from pyhtmldiff.utils import ilongzip
 from .base import DiffProducer
 
 
@@ -37,7 +37,7 @@ class DefaultDiffProducer(DiffProducer):
     @classmethod
     def _diff_item_replace(cls, old_items, new_items):
         result = []
-        for idx, (old_item, new_item) in enumerate(longzip(old_items, new_items)):
+        for idx, (old_item, new_item) in enumerate(ilongzip(old_items, new_items)):
             if old_item is not None:
                 result.append(cls._diff_item_remove(old_item))
             if new_item is not None:
