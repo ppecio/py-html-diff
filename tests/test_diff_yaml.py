@@ -63,6 +63,9 @@ class YamlTestRunnerMeta(type):
             case_file = open(os.path.join(directory, filename), "r")
             data = yaml.load(case_file)
 
+            if 'skip' in data:
+                continue
+
             for name, case in data.items():
                 if name == 'maintainer':
                     continue

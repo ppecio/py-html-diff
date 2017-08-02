@@ -1,5 +1,15 @@
 # Simple text diff
 maintainer: ppecio@nglogic.com
+#skip:
+
+equal:
+  title: Not modified text
+  original: >
+    <span>My text</span>
+  modified: >
+    <span>My text</span>
+  expected: >
+    <span>My text</span>
 
 removal:
   title: Pure text removal test

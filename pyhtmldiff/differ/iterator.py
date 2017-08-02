@@ -54,68 +54,6 @@ class SplittedTextNodesIterator(object):
         return self._data[item]
 
 
-class ReplaceIterator(object):
-    """
-    Convert replace operation from stream differ to delete and insert operation.
-    Here should be all magic with grouping/un-grouping inserts and removals during modify operation.
-    """
-
-    def __init__(self, old_part, new_part):
-        self._iter = OneBackIterator(ilongzip(old_part, new_part))
-        self._items = None
-
-    def _fill(self):
-        stop = False
-        old = []
-        new = []
-
-        while not stop:
-            # Replace operation should be rendered as remove and insert operations, convert
-            # one replace to these operations. Often replace is over multiple elements (events),
-            # try to group removals and inserts, so for example changing two words in text will be
-            # rendered as removing od old two words followed by insertion of new two words instead of
-            # first word removal, first word insertion and second word removal, second word insertion
-
-            # The same concern nodes, but for nodes operation is more complex and not implemented yet
-            # TODO: implement grouping for nodes (algorithm needs to be developed)
-
-            try:
-                old_evt, new_evt = next(self._iter)
-            except StopIteration:
-
-                # if there is no collected events (wrapped iterator is exhausted), re-raise exception
-                if not old and not new:
-                    raise
-
-                # ... otherwise break the loop and return collected events
-                break
-
-            if old_evt:
-                old.append(('delete', old_evt))
-            if new_evt:
-                new.append(('insert', new_evt))
-
-            stop = (old_evt is not None and old_evt[0] != TEXT) or (new_evt is not None and new_evt[0] != TEXT)
-
-        self._items = iter(old + new)
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        if self._items is None:
-            # fill might throw StopIteration is there is no date to
-            # iterate over
-            self._fill()
-
-        try:
-            return next(self._items)
-        except StopIteration:
-            # if buffer is exhausted, reset it and re-try
-            self._items = None
-            return self.next()
-
-
 class DiffIterator(object):
     """
     Wrapper for sequence matcher which convert its result to iterator which wraps
@@ -141,6 +79,9 @@ class DiffIterator(object):
         """
 
         operation, i1, i2, j1, j2 = next(self._parts)
+        old_part = islice(self._old, i1, i2)
+        new_part = islice(self._new, j1, j2)
+
         if operation == 'replace':
             # match slices to its ends
 
@@ -169,9 +110,6 @@ class DiffIterator(object):
 
             #   If user appends/removes contents at the end SequenceMatcher detect this correctly.
 
-            old_part = islice(self._old, i1, i2)
-            new_part = islice(self._new, j1, j2)
-
             if skip < 0:
                 # new list is longer than old
                 old_part = OffsetIterator(old_part, abs(skip))
@@ -179,15 +117,15 @@ class DiffIterator(object):
                 # old is longer than new
                 new_part = OffsetIterator(new_part, skip)
 
-            iterator = ReplaceIterator(old_part, new_part)
+            iterator = irepeat('replace', ilongzip(old_part, new_part))
         elif operation == 'delete':
-            iterator = irepeat('delete', islice(self._old, i1, i2))
+            iterator = irepeat('delete', ilongzip(old_part, [None]*(i2-i1)))
         elif operation == 'insert':
-            iterator = irepeat('insert', islice(self._new, j1, j2))
+            iterator = irepeat('insert', ilongzip([None]*(j2-j1), new_part))
         else:  # equal
             # both streams slices are the same,
             # it make no difference which stream is taken
-            iterator = irepeat('equal', islice(self._old, i1, i2))
+            iterator = irepeat('equal', ilongzip(old_part, new_part))
 
         self._iterator = iterator
 

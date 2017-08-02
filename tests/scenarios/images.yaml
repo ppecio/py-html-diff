@@ -1,33 +1,38 @@
 maintainer: ppecio@nglogic.com
+# skip:
 
 insert_img:
+  #skip: Passing
   title: "Check image insertion"
   original: >
     <p>Text with image</p>
   modified: >
     <p>Text with <img src="some_image.png"> image</p>
   expected: >
-    <p>Text with <ins><img src="some_image.png"></ins> image</p>
+    <p>Text with<ins> <img src="some_image.png"></ins> image</p>
 
 remove_img:
+  #skip: Passing
   title: "Check image removal"
   original: >
     <p>Text with <img src="some_image.png"> image</p>
   modified: >
     <p>Text with image</p>
   expected: >
-    <p>Text with <del><img src="some_image.png"></del> image</p>
+    <p>Text with<del> <img src="some_image.png"></del> image</p>
 
 change_img:
+  #skip: Passing
   title: "Check image source change"
   original: >
     <p>Text with <img src="some_image.png"> image</p>
   modified: >
     <p>Text with <img src="different_image.png"> image</p>
   expected: >
-    <p>Text with <img src="different_image.png"> image</p>
+    <p>Text with <del><img src="some_image.png"></del><ins><img src="different_image.png"></ins> image</p>
 
-replace_by_image:
+replace_image:
+  #skip: Passing
   title: "Check replacing image by text"
   original: >
     <p>Text with <img src="some_image.png"> image</p>
@@ -36,7 +41,8 @@ replace_by_image:
   expected: >
     <p>Text with <del><img src="some_image.png"></del><ins>no</ins> image</p>
 
-replace_image:
+replace_by_image:
+  #skip: Passing
   title: "Check replacing text by image"
   original: >
     <p>Text with no image</p>

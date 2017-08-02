@@ -4,15 +4,15 @@
 
 .. moduleauthor:: Paweł Pecio
 """
-import warnings, logging
+import logging
+import warnings
 
-from genshi.core import START, END, TEXT, Attrs, QName
+from genshi.core import START, END
 
+from differ.buffer import DiffBuffer, Buffer
 from differ.iterator import OneBackIterator
-from dtd.const import DiffBehaviour, DOMNode
+from dtd.const import DiffBehaviour
 from dtd.html5 import Html5Definition
-from producer.standard import DefaultDiffProducer
-
 
 logger = logging.getLogger('pyHtmlDiff')
 
@@ -32,8 +32,7 @@ class BaseProcessor(object):
         """
         self._iter = events_iter
         self._parent = parent
-        self._result = []
-        self._stack = []
+        self._result = self._create_buffer()
         self._exhausted = True
         logger.debug("Diff context processor %r instantiated within parent %r" % (self.__class__, parent))
 
@@ -54,10 +53,16 @@ class BaseProcessor(object):
 
             result = self._process_event(operation, event)
             if result is False:
-                yield operation, event, self.get_current_element()
+                yield operation, event, self._get_current_element()
 
         self._exhausted = True
         raise StopIteration
+
+    def _create_buffer(self):
+        return Buffer()
+
+    def _get_current_element(self):
+        return self._result.get_current_element()
 
     def _stop(self, operation, event):
         """
@@ -76,13 +81,16 @@ class BaseProcessor(object):
         """
         Process diff stream event
 
-        +----------------+-----------+
-        | Operation code | Event     |
-        +----------------+-----------+
-        | insert         | New event |
-        | delete         | Old event |
-        | equal          | New event |
-        +----------------+-----------+
+        +----------------+------------------------+
+        | Operation code | Event                  |
+        +----------------+------------------------+
+        | insert         | (None, New event       |
+        | delete         | (Old event, None)      |
+        | equal          | (Old event, New event) |
+        | replace        | (old event, new_event) |
+        +----------------+------------------------+
+
+        Note: for equal operation old event and new event are the same.
 
         :param operation: Operation code, can be: insert, delete, replace, equal
         :param event: Genshi event
@@ -92,131 +100,36 @@ class BaseProcessor(object):
         :rtype: bool
         """
 
-        event_type, data, pos = event
-        if event_type == START:
-            tag, attrs = data
+        ev = None
 
-            # check how these tag should be diffed
-            diff_type = Html5Definition.get_diff_type(tag)
-            if diff_type == DiffBehaviour.skip:
-                # diffing of this tag and its contents should be skipped
-                # passthrough whole tag to the output
-                self._passthrough(event)
+        if operation in {'equal', 'insert'}:
+            ev = event[1]
+        elif operation == 'delete':
+            ev = event[0]
+        elif operation == 'replace':
+            ev = event[1]
+            if ev is None:
                 return True
-            elif diff_type == DiffBehaviour.as_block:
-                # diff this tag as one element, to do that go through all
-                self._process_block(event)
-                return True
-
-            self.append(event)
-            self._enter(data[0])
-        elif event_type == END:
-            self._leave(data)
-            self.append(event)
         else:
-            self.append(event)
+            raise NotImplementedError("Unsupported operation")
+
+        ev_type, data, pos = ev
+
+        if ev_type == START:
+            dt = Html5Definition.get_diff_type(data[0])
+
+            if dt in {DiffBehaviour.as_block, DiffBehaviour.skip}:
+                return False
 
         return True
 
-    def _collect_block(self, start_event, op_to_collect):
-
-        event_type, data, pos = start_event
-        result = []
-
-        # track how many times the same tag is open inside pass-thorough block
-        counter = 1
-
-        for operation, event in self._iter:
-
-            if operation in op_to_collect:
-                # only events from new version are important
-                result.append(event)
-
-            et, dt, p = event
-            if et == START and dt[0] == data[0]:
-                # again, inside skipped block the same tag is open, increase tag opening counter
-                counter += 1
-            elif et == END and dt == data[0]:
-                counter -= 1
-                if counter == 0:
-                    break
-
-        return result
-
-    def _passthrough(self, start_event):
+    def inject(self, buff):
         """
-        Pass whole tag and its content just to the output without any processing.
-        :param start_event:
-        :return:
-        """
-        self.extend(self._collect_block(start_event, {'equal', 'insert'}))
-
-    def _process_block(self, start_event):
-        """
-        Check if block (whole tag and its contents) was changed and process it appropriately.
-        By default, collect whole block and send to the result at once.
-        :param start_event:
+        Inject result of another processor
+        :param buff:
         :return:
         """
         raise NotImplementedError()
-
-    def get_current_element(self):
-        """
-        Get current element which contents are processing
-        :return:
-        :rtype: QName
-        """
-        return self._stack[-1] if self._stack else self._parent
-
-    def can_contain_diff(self):
-        """
-        Determine if current element (see get_current_element()) can hold diff tags
-        :return: True if diff tags are allowed as current element contents, False otherwise
-        :rtype: bool
-        """
-        return Html5Definition.get_diff_type(self.get_current_element()) == DiffBehaviour.internally
-
-    def _enter(self, tag):
-        logger.debug('  > entering into %r' % tag)
-        self._stack.append(tag)
-
-    def pop_stack(self):
-        return self._stack.pop() if self._stack else None
-
-    def _leave(self, tag):
-        logger.debug('  > trying to leave %r' % tag)
-
-        top = self.pop_stack()
-
-        if top is None:
-            warnings.warn("Cannot leave requested tag, stack empty. Tag: %r" % tag)
-            return False
-
-        if top == tag:
-            return True
-
-        warnings.warn("Close tag request does not match current opened tag. Current: %r, Requested: %r" % (
-            top,
-            tag
-        ))
-
-        return False
-
-    def append(self, result):
-        """
-        Append given item to the processor result stream
-        :param result: tuple(event_type, data, pos)
-        :return:
-        """
-        self._result.append(result)
-
-    def extend(self, result):
-        """
-        Extends processor result stream by given results
-        :param result: list,tuple
-        :return:
-        """
-        self._result.extend(result)
 
     def flush(self):
         """
@@ -246,21 +159,38 @@ class RootProcessor(BaseProcessor):
 
         if operation == 'equal':
             processor_cls = EqualProcessor
+            this_ev = event[1]
         elif operation == 'insert':
             processor_cls = InsertProcessor
+            this_ev = event[1]
         elif operation == 'delete':
             processor_cls = DeleteProcessor
+            this_ev = event[0]
+        elif operation == 'replace':
+            processor_cls = ReplaceProcessor
+
+            # TODO: which event should be taken? what if block diffed element is replaced by internally
+            # diffed?
+            this_ev = event[1]
         else:
             raise AssertionError("Unsupported operation type %r" % operation)
+
+        # TODO: this_ev could be None even if replace operation contain None as new element
+        if this_ev is not None and this_ev[0] == START:
+            diff_type = Html5Definition.get_diff_type(this_ev[1][0])
+            if diff_type == DiffBehaviour.skip:
+                processor_cls = SkipProcessor
+            elif diff_type == DiffBehaviour.as_block:
+                processor_cls = BlockProcessor
 
         # rewind iterator one step back, so processor will the this event as a first one
         self._iter.go_back()
 
         logger.debug("-> Entering into processor %r" % processor_cls)
 
-        processor = processor_cls(self._iter, parent=(parent or self.get_current_element()))
+        processor = processor_cls(self._iter, parent=(parent or self._get_current_element()))
         for op, evt, parent in processor:
-            processor.extend(self._subprocess_event(op, evt, parent))
+            processor.inject(self._subprocess_event(op, evt, parent))
 
         res = processor.flush()
 
@@ -268,261 +198,274 @@ class RootProcessor(BaseProcessor):
         return res
 
     def _process_event(self, operation, event):
-        res = self._subprocess_event(operation, event)
-        self.extend(res)
+        self._result.extend(self._subprocess_event(operation, event).get_result())
 
     def execute(self):
         for _ in self:
             # root processor should never yield
             raise AssertionError
 
-        return self.flush()
+        return self.flush().get_result()
 
-    def _process_block(self, start_event):
-        raise AssertionError
+    def inject(self, buff):
+        # This is root processor, there is no processor which can inject something
+        raise NotImplementedError("Injection into root processor is not allowed")
+
+
+class BlockProcessor(BaseProcessor):
+    """
+    Block processor process block content, which are nodes which should not be diffed internally.
+    * if whole block is equal then block is equal,
+    * if block opening tag is removed then whole block is removed
+    * if opening tag is inserted, whole block is inserted,
+    * if opening tag is replaced, then whole block is replaced (should be duplicated with contents)
+    * if block contents was modified, whole block should be marked ad replaced (should be duplicated)
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(BlockProcessor, self).__init__(*args, **kwargs)
+        self._op_codes = set()
+        self._started = False
+
+    def _create_buffer(self):
+        return (
+            DiffBuffer(operation='delete', parent=self._parent),
+            DiffBuffer(operation='insert', parent=self._parent)
+        )
+
+    def _stop(self, operation, event):
+        # when stack is cleared then stop processing
+        # started flag prevents cancelling operation in first iteration when opening node tag is
+        # not in the result stack yet
+        if self._started is False:
+            self._started = True
+            return False
+
+        return self._result[0].is_stack_empty() and self._result[1].is_stack_empty()
+
+    def inject(self, buff):
+        # Injecting make no sense, because this processor is able to process all operations
+        # (it never yields)
+        raise NotImplementedError("Injecting into skipped content is not allowed")
+
+    def _process_event(self, operation, event):
+
+        # passthrough to the output all events which comes from new version
+
+        self._op_codes.add(operation)
+
+        if operation in {'equal', 'replace'}:
+            if event[0] is not None:
+                self._result[0].append(event[0])
+            if event[1] is not None:
+                self._result[1].append(event[1])
+        elif operation == 'delete':
+            self._result[0].append(event[0])
+        elif operation == 'insert':
+            self._result[1].append(event[1])
+        else:
+            raise NotImplementedError("Unknown operation")
+
+        return True
+
+    def flush(self):
+        if len(self._op_codes) == 1:
+            code = self._op_codes.pop()
+            if code == 'equal':
+                # this is block diff, if result contain diff tags than opening node is
+                # the first element in the result, closing is the last one - remove them
+                # because content is equal so should not be marked
+                buff = Buffer()
+                buff.inject(self._result[1].get_result()[1:-1])
+                return buff
+            elif code == 'delete':
+                return self._result[0]
+            elif code == 'insert':
+                return self._result[1]
+
+        # if block opening tag was replaced or block contents has insertion/removals/replacements
+        # whole block should be marked as replaced, which means that old content should be marked as
+        # removed, new one as inserted. Concatenate result from two buffers
+        buff = Buffer()
+        buff.inject(self._result[0].get_result())
+        buff.inject(self._result[1].get_result())
+        return buff
+
+
+class SkipProcessor(BaseProcessor):
+    """
+    Skip processor process content (nodes) which should be skipped, which means that should not
+    be diffed. New version of the content is just passed to the result without any processing.
+
+    This is kind of block processor but with no processing logic.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(SkipProcessor, self).__init__(*args, **kwargs)
+        self._started = False
+
+    def _stop(self, operation, event):
+        # when stack is cleared then stop processing
+        # started flag prevents cancelling operation in first iteration when opening node tag is
+        # not in the result stack yet
+        if self._started is False:
+            self._started = True
+            return False
+
+        return self._result.is_stack_empty()
+
+    def inject(self, buff):
+        # Injecting make no sense, because this processor is able to process all operations
+        # (it never yields)
+        raise NotImplementedError("Injecting into skipped content is not allowed")
+
+    def _process_event(self, operation, event):
+
+        # passthrough to the output all events which comes from new version
+
+        if operation != 'remove':
+            # append event from new version for equal, insert and replace
+            self._result.append(event[1])
+
+        # if operation is remove do nothing, removed content should not be included in the result
+        # there is no need to track opening and closing of removed content, if opening tag is removed
+        # then closing tag is removed too
+
+        return True
 
 
 class EqualProcessor(BaseProcessor):
 
+    def inject(self, buff):
+        # in equal context all results can be placed as is, without any processing
+        self._result.extend(buff.get_result())
+
     def _stop(self, operation, event):
-        return operation != 'equal' and not self._stack
+        return operation != 'equal' and self._result.is_stack_empty()
 
     def _process_event(self, operation, event):
-        if operation != 'equal':
+
+        if not super(EqualProcessor, self)._process_event(operation, event):
             return False
 
-        return super(EqualProcessor, self)._process_event(operation, event)
+        if operation != 'equal':
+            # if operation is different than equal cannot be handled by this processor,
+            # return False which means that operation will be yielded and passed to the parent
+            # processor
+            return False
 
-    def _process_block(self, start_event):
-        event_type, data, pos = start_event
-        old_events = []
-        new_events = []
-        op_codes = set()
-
-        # track how many times the same tag is open inside pass-thorough block
-        counter = 1
-
-        for operation, event in self._iter:
-
-            op_codes.add(operation)
-
-            if operation in {'equal', 'delete'}:
-                old_events.append(event)
-
-            if operation in {'equal', 'insert'}:
-                new_events.append(event)
-
-            et, dt, p = event
-            if et == START and dt[0] == data[0]:
-                # again, inside skipped block the same tag is open, increase tag opening counter
-                counter += 1
-            elif et == END and dt == data[0]:
-                counter -= 1
-                if counter == 0:
-                    break
-
-        if len(op_codes) > 1 or 'equal' not in op_codes:
-            # if there was more than one diff operation in block contents or
-            # operation is different than equal, then it means that block contents changed,
-            # render old as removed, render new as inserted
-            processor = DeleteProcessor(parent=self.get_current_element())
-            processor.extend(old_events)
-            self.extend(processor.flush())
-            processor = InsertProcessor(parent=self.get_current_element())
-            processor.extend(new_events)
-            self.extend(processor.flush())
-        else:
-            self.extend(new_events)
+        self._result.append(event[0])
 
 
 class SingleOperationProcessor(BaseProcessor):
 
-    class MARKER(object):
-        pass
-
     operation = None
 
-    def __init__(self, *args, **kwargs):
-        super(SingleOperationProcessor, self).__init__(*args, **kwargs)
-        self._stack = []
-        self._buffer = []
+    def inject(self, buff):
+        if isinstance(buff, DiffBuffer):
+            if buff.operation != self.operation:
+                # another diff buffer is injecting, if operation is the same allow, if is different
+                # currently result is not defined
+                warnings.warn("Cannot inject buffer which describe different operation than handled "
+                              "by current processor")
 
-        self._rendered = False
-        self._all_same = None
+        res = buff.get_result()
+        if res[0][0] == START and res[0][1][0] in {'ins', 'del'}:
+            # this is block result (probably), remove wrapping diff tag to avoid
+            # putting diff tag in diff tag
+            res = res[1:-1]
 
-        if self.can_contain_diff():
-            self.open_diff()
+        self._result.extend(res)
 
     def _stop(self, operation, event):
-        if operation != self.operation and (not self._stack or self._stack[0] is self.MARKER):
+        if operation != self.operation and self._result.is_stack_empty():
             return True
 
         return False
+
+    def _create_buffer(self):
+        return DiffBuffer(operation=self.operation, parent=self._parent)
 
     def _process_event(self, operation, event):
 
-        if operation == 'equal':
-            self._all_same = False
-            self.append(event)
-
-        if operation != self.operation:
-            self._all_same = False
+        if not super(SingleOperationProcessor, self)._process_event(operation, event):
             return False
 
-        return super(SingleOperationProcessor, self)._process_event(operation, event)
-
-    def _enter(self, tag):
-        super(SingleOperationProcessor, self)._enter(tag)
-
-        if self._rendered is True and self.get_current_element() is self.MARKER:
-            # if diff tag is open and we are about to enter into new tag
-            # and we are in diff tag, close current diff, so
-            # Foo <b> bar </b>
-            #  I   I   E   I
-            # will be rendered as:
-            # <ins>Foo</ins><ins formatting><b>E</b></ins>
-            #
-            self.close_diff()
-
-        if self._rendered is False and self.can_contain_diff():
-            self.open_diff()
-
-    def _leave(self, tag):
-
-        if super(SingleOperationProcessor, self)._leave(tag):
-
-            top = self.get_current_element()
-            if top is self.MARKER:
-                self.pop_stack()
-                self.close_diff()
-
-            return True
-
-        return False
-
-    def append(self, result):
-        if self._rendered:
-            self._buffer.append(result)
-        else:
-            evt_type, data, pos = result
-            if evt_type == TEXT:
-                # Diff processor tag is not rendered yet, but text node insertion is requested
-                # this means that content visible to user won't be marked properly
-                # This may happen only if current node not allow to place diff inside but allow
-                # to has content nodes. Probably there is only one such tag in HTML - <pre>
-                warnings.warn("Diff tag not rendered and text node is about to be appended to the result."
-                              "Text '%r' won't be marked properly" % data)
-
-                if not self._append_hazardous_result():
-                    return
-
-            self._result.append(result)
-
-    def extend(self, result):
-        if self._rendered:
-            self._buffer.extend(result)
-        else:
-            # Diff processor tag is not rendered yet, but set of results was requested to be inserted
-            # at bulk. These results won't be marked properly.
-            warnings.warn("Diff tag not rendered and bulk of events is about to be inserted in the result")
-            if not self._append_hazardous_result():
-                return
-
-            self._result.extend(result)
-
-    def _append_hazardous_result(self):
-        """
-        Items which are about to be appended will not be properly marked according to the processor,
-        because diff tag was not placed yet. By default, such content appending is not allowed.
-        :return:
-        """
-        return False
-
-    def close_diff(self):
-        """
-        Close diff marked piece of HTML. Detect if all operation events was the same, if so it means that only
-        one kind of operation happen, so regular diff tag should be rendered. If operations are not the same
-        this means that inside diffed element there is also original content, so in fact this was a change in
-        formatting.
-
-        Diffed sections are rendered lazily. Here, opening diff tag is put into result stream, then
-        collected buffer events and closing tag.
-        """
-        # child is an element which should be wrapped by diff, this could be a text node
-        # or tag
-        child = self._buffer[0]
-        if self._all_same:
-            # all events was the same operation
-            node = getattr(DefaultDiffProducer, 'render_%s' % self.operation)(self.get_current_element())
-        else:
-            # here text node is not valid, diff in text is by word, its not possible that
-            # text nodes are inserted and not all in this context was inserted (if so, diff iterator
-            # should return equal action and break insert processor)
-            assert child[0] == START
-            formatting_node = DOMNode(
-                name=child[1][0],
-                attrs=child[1][1]
+        if operation == 'equal' or operation == self.operation:
+            self._result.append(
+                self._select_event(event)
             )
-            node = getattr(DefaultDiffProducer, 'render_formatting_%s' % self.operation)(self.get_current_element(),
-                                                                                         formatting_node)
-
-        logger.debug("Lazy diff '%s' of %d nodes marked using %r" % (self.operation, len(self._buffer), node))
-
-        self._result.append((START, (QName(node.name), Attrs(node.attrs)), None))
-        self._result.extend(self._buffer)
-        self._result.append((END, QName(node.name), None))
-
-        self._rendered = False
-        self._buffer = []
-
-    def open_diff(self):
-        """
-        Lazily open diff marked piece of HTML. As now, all results will be stored in temporary buffer until
-        opened tags stack return back to diff mark and close_diff() will be called.
-        """
-        logger.debug("Diff tag allowed in %r. Opening node." % self.get_current_element())
-        self._buffer = []
-        self._rendered = True
-        self._all_same = True
-        self._stack.append(self.MARKER)
-
-    def flush(self):
-        if self._stack and self._stack[0] is self.MARKER:
-            self.close_diff()
-
-        return super(SingleOperationProcessor, self).flush()
-
-    def _process_block(self, start_event):
-        raise NotImplementedError()
+        else:
+            return False
 
 
 class InsertProcessor(SingleOperationProcessor):
-
     operation = 'insert'
 
-    def _append_hazardous_result(self):
-        # for insertion processor allow to put hazardous result into output,
-        # this is not OK, but only side effect is that content which was inserted in new document version
-        # won't be marked as inserted. This case is better that dropping this content completely out.
-        return True
-
-    def _process_block(self, start_event):
-        # whole block should be marked as inserted, collect sub-events which type is equal or inserted,
-        # so block will be rendered in the same way as is in new file version
-        self.extend(self._collect_block(start_event, {'equal', 'insert'}))
+    def _select_event(self, evts):
+        return evts[1]
 
 
 class DeleteProcessor(SingleOperationProcessor):
     operation = 'delete'
 
-    def _passthrough(self, start_event):
-        # node is marked as removed and all its contents should be skipped
-        # in deletion it means that should not be passed to the output
-        # just consume block
-        self._collect_block(start_event, set())
+    def _select_event(self, evts):
+        return evts[0]
 
-    def _process_block(self, start_event):
-        # whole block should be marked as removed, collect contents events which type is equal or deleted,
-        # so removed block will be rendered in the same way as exist in old file version
-        # skip any insertion inside (if exist) because cannot be rendered (diff is not allowed inside block)
-        self.extend(self._collect_block(start_event, {'equal', 'delete'}))
+
+class ReplaceProcessor(BaseProcessor):
+    operation = 'replace'
+
+    def inject(self, buff):
+        if isinstance(buff, DiffBuffer):
+            if buff.operation == 'insert':
+                self._result[1].extend(buff.get_result())
+            elif buff.operation == 'delete':
+                self._result[0].extend(buff.get_result())
+            else:
+                raise NotImplementedError("Not supported diff buffer injection")
+        else:
+            self._result[0].extend(buff.get_result())
+            self._result[1].extend(buff.get_result())
+
+    def _stop(self, operation, event):
+        if operation != 'replace' and self._result[0].is_stack_empty() and self._result[1].is_stack_empty():
+            return True
+
+        return False
+
+    def _create_buffer(self):
+        return (
+            DiffBuffer(operation='delete', parent=self._parent),
+            DiffBuffer(operation='insert', parent=self._parent)
+        )
+
+    def _process_event(self, operation, event):
+
+        if not super(ReplaceProcessor, self)._process_event(operation, event):
+            return False
+
+        if operation in {'equal', 'replace'}:
+            if event[0] is not None:
+                self._result[0].append(event[0])
+            if event[1] is not None:
+                self._result[1].append(event[1])
+        elif operation == 'delete':
+            self._result[0].append(event[0])
+        elif operation == 'insert':
+            self._result[1].append(event[1])
+        else:
+            raise NotImplementedError("Unsupported operation")
+
+        return True
+
+    def flush(self):
+        buff = Buffer()
+        buff.inject(self._result[0].get_result())
+        buff.inject(self._result[1].get_result())
+        return buff
+
+    def _get_current_element(self):
+        # TODO: if both current elements are the same case is simple
+        # but what if are different?
+        return self._result[1].get_current_element()
