@@ -21,13 +21,13 @@ add_table:
   expected: >
     <section>
       <p>Paragraph before</p>
-      <table>
+      <ins><table>
         <tbody>
-          <tr><td><ins>1,1</ins></td><td><ins>1,2</ins></td></tr>
-          <tr><td><ins>2,1</ins></td><td><ins>2,2</ins></td></tr>
+          <tr><td>1,1</td><td>1,2</td></tr>
+          <tr><td>2,1</td><td>2,2</td></tr>
         </tbody>
       </table>
-      <p>Paragraph after</p>
+      </ins><p>Paragraph after</p>
     </section>
 
 remove_table:
@@ -51,13 +51,13 @@ remove_table:
   expected: >
     <section>
       <p>Paragraph before</p>
-      <table>
+      <del><table>
         <tbody>
-          <tr><td><del>1,1</del></td><td><del>1,2</del></td></tr>
-          <tr><td><del>2,1</del></td><td><del>2,2</del></td></tr>
+          <tr><td>1,1</td><td>1,2</td></tr>
+          <tr><td>2,1</td><td>2,2</td></tr>
         </tbody>
       </table>
-      <p>Paragraph after</p>
+      </del><p>Paragraph after</p>
     </section>
 
 add_row:
@@ -219,9 +219,9 @@ add_empty_table:
   expected: >
     <section>
       <p>Paragraph before</p>
-      <table>
+      <ins><table>
       </table>
-      <p>Paragraph after</p>
+      </ins><p>Paragraph after</p>
     </section>
 
 remove_empty_table:
@@ -241,5 +241,7 @@ remove_empty_table:
   expected: >
     <section>
       <p>Paragraph before</p>
-      <p>Paragraph after</p>
+      <del><table>
+      </table>
+      </del><p>Paragraph after</p>
     </section>
