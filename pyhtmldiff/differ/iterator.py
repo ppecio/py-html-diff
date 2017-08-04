@@ -6,10 +6,11 @@
 """
 import re
 import string
+from collections import namedtuple
 from difflib import SequenceMatcher
 from itertools import chain, islice
 
-from genshi.core import TEXT
+from genshi.core import TEXT, START
 
 from utils import ilongzip, irepeat
 
@@ -54,6 +55,105 @@ class SplittedTextNodesIterator(object):
         return self._data[item]
 
 
+class OpCodeItem(object):
+
+    def __init__(self, operation, i1, i2, j1, j2):
+        self._op = operation
+        self._i1 = i1
+        self._i2 = i2
+        self._j1 = j1
+        self._j2 = j2
+
+    @property
+    def operation(self):
+        return self._op
+
+    @property
+    def old_start(self):
+        return self._i1
+
+    @property
+    def old_end(self):
+        return self._i2
+
+    @property
+    def new_start(self):
+        return self._j1
+
+    @property
+    def new_end(self):
+        return self._j2
+
+    @property
+    def old_length(self):
+        return self._i2 - self._i1
+
+    @property
+    def new_length(self):
+        return self._j2 - self._j1
+
+
+class OpCodeIterator(object):
+
+    def __init__(self, opcodes):
+        self._iter = iter(opcodes)
+        self._moves = []
+        self._current = None
+        self._stack = []
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        """
+
+        :return: OpCodeItem
+        """
+        try:
+            self._current = self._stack.pop(0) if self._stack else OpCodeItem(*next(self._iter))
+        except StopIteration:
+            self._current = None
+            raise
+
+        if self._moves:
+            mv = self._moves.pop(0)
+            self._current._i1 += mv[0]
+            self._current._i2 += mv[1]
+            self._current._j1 += mv[2]
+            self._current._j2 += mv[3]
+
+        return self._current
+
+    def look_ahead(self, offset=1):
+        """
+
+        :param offset:
+        :return: OpCodeItem
+        """
+        for i in range(0, offset):
+            try:
+                self._stack.append(OpCodeItem(*next(self._iter)))
+            except StopIteration:
+                return None
+
+        return self._stack[-1]
+
+    def move_next(self, offset):
+        # cut current element end
+        self._current._i2 += offset
+        self._current._j2 += offset
+
+        # move next element by the offset
+        self._moves.append(
+            (offset, offset, offset, offset)
+        )
+
+        # element after next element start should be extended by the offset
+        self._moves.append(
+            (offset, 0, offset, 0)
+        )
+
+
 class DiffIterator(object):
     """
     Wrapper for sequence matcher which convert its result to iterator which wraps
@@ -68,9 +168,12 @@ class DiffIterator(object):
         self._old = old
         self._new = new
         matcher = SequenceMatcher(lambda x: x[0] == TEXT and x[1] in string.whitespace, self._old, self._new)
-        self._parts = iter(matcher.get_opcodes())
+        self._parts = OpCodeIterator(matcher.get_opcodes())
 
         self._iterator = None
+
+    def _next_part(self):
+        return next(self._parts)
 
     def _fill(self):
         """
@@ -78,14 +181,32 @@ class DiffIterator(object):
         :return:
         """
 
-        operation, i1, i2, j1, j2 = next(self._parts)
-        old_part = islice(self._old, i1, i2)
-        new_part = islice(self._new, j1, j2)
+        current = self._next_part()
+        upcoming = self._parts.look_ahead(1)
 
-        if operation == 'replace':
+        # special case
+        # if HTMl element contains multiple child of the same type then if middle child is
+        # removed sequence matcher see the same opening tag in old (opening tag of removed element)
+        # and new version (opening tag of next element of the same type). In such case sequence matcher
+        # keep opening tag as EQUAL and then in delete op_code content, closing tag and opening tag is
+        # stored. For proper operation we should move del op_code one event back.
+        # Dual situation does not occur for insertions, because sequence matcher mark first occurrence
+        # as inserted, not equal.
+
+        if upcoming is not None:
+            if current.operation == 'equal' and upcoming.operation == 'delete':
+                eual_last_event = self._old[current.old_end - 1]
+                del_last_event = self._old[upcoming.old_end - 1]
+                if eual_last_event[0] == START and del_last_event[0] == START and eual_last_event[1] == del_last_event[1]:
+                    self._parts.move_next(-1)
+
+        old_part = islice(self._old, current.old_start, current.old_end)
+        new_part = islice(self._new, current.new_start, current.new_end)
+
+        if current.operation == 'replace':
             # match slices to its ends
 
-            skip = (i2 - i1) - (j2 - j1)
+            skip = current.old_length - current.new_length
 
             # Sequences should be aligned to its ends for proper prepending and removals at the begging
             # handling.
@@ -118,10 +239,10 @@ class DiffIterator(object):
                 new_part = OffsetIterator(new_part, skip)
 
             iterator = irepeat('replace', ilongzip(old_part, new_part))
-        elif operation == 'delete':
-            iterator = irepeat('delete', ilongzip(old_part, [None]*(i2-i1)))
-        elif operation == 'insert':
-            iterator = irepeat('insert', ilongzip([None]*(j2-j1), new_part))
+        elif current.operation == 'delete':
+            iterator = irepeat('delete', ilongzip(old_part, [None]*current.old_length))
+        elif current.operation == 'insert':
+            iterator = irepeat('insert', ilongzip([None]*current.new_length, new_part))
         else:  # equal
             # both streams slices are the same,
             # it make no difference which stream is taken

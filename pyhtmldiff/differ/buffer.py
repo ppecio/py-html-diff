@@ -35,11 +35,13 @@ class Buffer(object):
 
         if event_type == START:
             # opening node tag
+            self._result.append(event)
             self._open_node(data[0])
         elif event_type == END:
             self._close_node(data)
-
-        self._result.append(event)
+            self._result.append(event)
+        else:
+            self._result.append(event)
 
     def extend(self, events):
         for ev in events:
@@ -93,7 +95,7 @@ class DiffBuffer(Buffer):
 
         self._marker = DiffMarker(operation)
         self._rendered = False
-        self._buffer = None
+        self._held_result = None
 
         if parent is None or self.can_contain_diff(parent):
             self._open_diff()
@@ -106,7 +108,7 @@ class DiffBuffer(Buffer):
         if len(self._stack) == 1 and isinstance(self._stack[0], DiffMarker):
             self._close_diff()
 
-        if self._buffer is not None:
+        if self._held_result is not None:
             # this might happen if diff was opened but is not closed (even by code above)
             # probably some tag inside diff was not closed properly
             # In fact, with valid HTML, this should never happens
@@ -114,30 +116,24 @@ class DiffBuffer(Buffer):
 
         return self._result
 
-    def append(self, event):
-        if self._buffer is not None:
-            self._buffer.append(event)
-        else:
-            super(DiffBuffer, self).append(event)
-
-    def is_stack_empty(self):
-        # if there is opened diff, opened nodes stack is empty if this buffer stack is empty and
-        # diff buffer stack is empty
-        return super(DiffBuffer, self).is_stack_empty() and (self._buffer is None or self._buffer.is_stack_empty())
-
     def _open_node(self, data):
-        super(DiffBuffer)._open_node(data)
-        if self._rendered is False and self.can_contain_diff(data[0]):
+        super(DiffBuffer, self)._open_node(data)
+        if self._rendered is False and self.can_contain_diff(data):
             self._open_diff()
 
     def _close_node(self, data):
         if isinstance(self._stack[-1], DiffMarker):
             self._close_diff()
 
-        super(DiffBuffer)._close_node(data)
+        super(DiffBuffer, self)._close_node(data)
 
     def _open_diff(self):
-        self._buffer = Buffer()
+        # store current data in secondary buffer
+        self._held_result = self._result
+
+        # clear current result, so everything which should be inside diff will be stored here
+        self._result = []
+
         self._stack.append(self._marker)
         self._rendered = True
 
@@ -147,14 +143,28 @@ class DiffBuffer(Buffer):
 
         self._render_diff()
 
-        self._buffer = None
         self._rendered = False
 
     def _render_diff(self):
         diff_node = getattr(self.renderer, 'render_%s' % self._marker.operation)(self.get_current_element())
+
+        # get collected data which should be inside diff
+        buff = self._result
+
+        # restore original result buffer
+        self._result = self._held_result
+
+        # append diff opening tag
         self._result.append((START, (QName(diff_node.name), Attrs(diff_node.attrs)), None))
-        self._result.extend(self._buffer.get_result())
+
+        # append collected diff content
+        self._result.extend(buff)
+
+        # close diff tag
         self._result.append((END, QName(diff_node.name), None))
+
+        # clear hold result buffer (secondary buffer)
+        self._held_result = None
 
     def can_contain_diff(self, element):
         dt = Html5Definition.get_diff_type(element)

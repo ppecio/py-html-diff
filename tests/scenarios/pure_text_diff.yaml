@@ -1,6 +1,6 @@
 # Simple text diff
 maintainer: ppecio@nglogic.com
-#skip:
+# skip:
 
 equal:
   title: Not modified text

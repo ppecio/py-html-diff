@@ -1,0 +1,81 @@
+maintainer: ppecio@nglogic.com
+
+unchanged_list:
+ name: Unchanged list
+ #skip: Passing
+ original: >
+   <ul>
+     <li>First</li>
+     <li>Second</li>
+   </ul>
+ modified: >
+   <ul>
+     <li>First</li>
+     <li>Second</li>
+   </ul>
+ expected: >
+   <ul>
+     <li>First</li>
+     <li>Second</li>
+   </ul>
+
+insert_item:
+ name: Test list item insertion
+ #skip: Passing
+ original: >
+   <ul>
+     <li>First</li>
+     <li>Second</li>
+   </ul>
+ modified: >
+   <ul>
+     <li>First</li>
+     <li>Second</li>
+     <li>Third</li>
+   </ul>
+ expected: >
+   <ul>
+     <li>First</li>
+     <li>Second</li>
+     <li><ins>Third</ins></li>
+   </ul>
+
+remove_item:
+ name: Test list item removal
+ #skip: Passing
+ original: >
+   <ul>
+     <li>First</li>
+     <li>Second</li>
+     <li>Third</li>
+   </ul>
+ modified: >
+   <ul>
+     <li>First</li>
+     <li>Third</li>
+   </ul>
+ expected: >
+   <ul>
+     <li>First</li>
+     <li><del>Second</del></li>
+     <li>Third</li>
+   </ul>
+
+replace_item:
+ name: Test item replacement
+ # skip: Passing
+ original: >
+   <ul>
+     <li>First</li>
+     <li>Second</li>
+   </ul>
+ modified: >
+   <ul>
+     <li>First</li>
+     <li>Third</li>
+   </ul>
+ expected: >
+   <ul>
+     <li>First</li>
+     <li><del>Second</del><ins>Third</ins></li>
+   </ul>
